@@ -33,7 +33,6 @@ from takopi.telegram.bridge import (
     TelegramPresenter,
     TelegramTopicsConfig,
     TelegramTransport,
-    TelegramVoiceTranscriptionConfig,
     poll_updates,
     run_main_loop,
 )
@@ -42,6 +41,11 @@ from takopi.telegram.client import TelegramClient, is_group_chat_id
 from takopi.settings import require_telegram_config
 
 logger = get_logger(__name__)
+
+try:
+    from takopi.telegram.bridge import TelegramVoiceTranscriptionConfig
+except ImportError:  # takopi<0.16
+    TelegramVoiceTranscriptionConfig = None
 
 
 @dataclass(frozen=True)
@@ -248,10 +252,11 @@ def _build_startup_message(
 
 def _build_voice_transcription_config(
     transport_config: dict[str, object],
-) -> TelegramVoiceTranscriptionConfig:
-    return TelegramVoiceTranscriptionConfig(
-        enabled=bool(transport_config.get("voice_transcription", False)),
-    )
+) -> TelegramVoiceTranscriptionConfig | bool:
+    enabled = bool(transport_config.get("voice_transcription", False))
+    if TelegramVoiceTranscriptionConfig is None:
+        return enabled
+    return TelegramVoiceTranscriptionConfig(enabled=enabled)
 
 
 def _build_topics_config(

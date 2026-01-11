@@ -1,7 +1,7 @@
 [project]
 name = "takopi-telegram-group-auth"
 authors = [{name = "z80"}]
-version = "0.1.2"
+version = "0.1.3"
 description = "Telegram transport plugin for Takopi that restricts group chats to admins."
 readme = "readme.md"
 license = { file = "LICENSE" }
