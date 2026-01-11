@@ -30,7 +30,6 @@ from takopi.telegram.bridge import (
     TelegramCallbackQuery,
     TelegramFilesConfig,
     TelegramIncomingMessage,
-    TelegramIncomingUpdate,
     TelegramPresenter,
     TelegramTopicsConfig,
     TelegramTransport,
@@ -38,6 +37,7 @@ from takopi.telegram.bridge import (
     poll_updates,
     run_main_loop,
 )
+from takopi.telegram.types import TelegramIncomingUpdate
 from takopi.telegram.client import TelegramClient, is_group_chat_id
 from takopi.settings import require_telegram_config
 
