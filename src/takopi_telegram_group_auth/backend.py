@@ -33,7 +33,6 @@ from takopi.telegram.bridge import (
     TelegramPresenter,
     TelegramTopicsConfig,
     TelegramTransport,
-    poll_updates,
     run_main_loop,
 )
 from takopi.telegram.types import TelegramIncomingUpdate
@@ -46,6 +45,11 @@ try:
     from takopi.telegram.bridge import TelegramVoiceTranscriptionConfig
 except ImportError:  # takopi<0.16
     TelegramVoiceTranscriptionConfig = None
+
+try:
+    from takopi.telegram.bridge import poll_updates
+except ImportError:  # takopi<0.16
+    from takopi.telegram.loop import poll_updates
 
 
 @dataclass(frozen=True)
