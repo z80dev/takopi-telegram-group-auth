@@ -37,7 +37,10 @@ from takopi.telegram.bridge import (
 )
 from takopi.telegram.types import TelegramIncomingUpdate
 from takopi.telegram.client import TelegramClient, is_group_chat_id
-from takopi.settings import require_telegram_config
+try:
+    from takopi.settings import require_telegram_config
+except ImportError:  # takopi<0.16
+    require_telegram_config = None
 
 logger = get_logger(__name__)
 
@@ -118,6 +121,22 @@ def _build_auth_config(
         cache_ttl_s=settings.auth_cache_ttl_s,
         group_chat_id=settings.group_chat_id,
     )
+
+
+def _require_transport_config(
+    transport_config: dict[str, object], config_path: Path
+) -> tuple[str, int]:
+    if require_telegram_config is not None:
+        return require_telegram_config(transport_config, config_path)
+    raw_token = transport_config.get("bot_token")
+    if raw_token is None or not isinstance(raw_token, str) or not raw_token.strip():
+        raise ConfigError(f"Missing bot token in {config_path}.")
+    raw_chat_id = transport_config.get("chat_id")
+    if raw_chat_id is None:
+        raise ConfigError(f"Missing chat_id in {config_path}.")
+    if isinstance(raw_chat_id, bool) or not isinstance(raw_chat_id, int):
+        raise ConfigError(f"Invalid `chat_id` in {config_path}; expected an integer.")
+    return raw_token.strip(), raw_chat_id
 
 
 @dataclass(frozen=True)
@@ -340,7 +359,7 @@ class TelegramGroupAuthBackend(TransportBackend):
             if transport_override:
                 settings = settings.model_copy(update={"transport": transport_override})
             config = settings.transport_config(self.id, config_path=config_path)
-            require_telegram_config(config, config_path)
+            _require_transport_config(config, config_path)
         except ConfigError:
             issues.append(
                 _config_issue(
@@ -357,7 +376,7 @@ class TelegramGroupAuthBackend(TransportBackend):
     def lock_token(
         self, *, transport_config: dict[str, object], config_path: Path
     ) -> str | None:
-        token, _ = require_telegram_config(transport_config, config_path)
+        token, _ = _require_transport_config(transport_config, config_path)
         return token
 
     def build_and_run(
@@ -380,7 +399,7 @@ class TelegramGroupAuthBackend(TransportBackend):
         else:
             watch_enabled = settings.watch_config
 
-        token, chat_id = require_telegram_config(transport_config, config_path)
+        token, chat_id = _require_transport_config(transport_config, config_path)
         startup_msg = _build_startup_message(
             runtime,
             startup_pwd=os.getcwd(),
