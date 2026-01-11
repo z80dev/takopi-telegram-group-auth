@@ -48,6 +48,7 @@ logger = get_logger(__name__)
 class GroupAuthConfig:
     deny_message: str | None
     cache_ttl_s: float
+    group_chat_id: int | None
 
 
 class GroupAuthSettings(BaseModel):
@@ -55,6 +56,7 @@ class GroupAuthSettings(BaseModel):
 
     auth_cache_ttl_s: float = 60.0
     deny_message: str | None = None
+    group_chat_id: int | None = None
 
     @field_validator("auth_cache_ttl_s", mode="before")
     @classmethod
@@ -79,6 +81,15 @@ class GroupAuthSettings(BaseModel):
             raise ValueError("deny_message must be a non-empty string")
         return cleaned
 
+    @field_validator("group_chat_id", mode="before")
+    @classmethod
+    def _validate_group_chat_id(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError("group_chat_id must be an integer")
+        return value
+
 
 def _build_auth_config(
     transport_config: dict[str, object], *, config_path: Path
@@ -88,6 +99,8 @@ def _build_auth_config(
         raw["auth_cache_ttl_s"] = transport_config["auth_cache_ttl_s"]
     if "deny_message" in transport_config:
         raw["deny_message"] = transport_config["deny_message"]
+    if "group_chat_id" in transport_config:
+        raw["group_chat_id"] = transport_config["group_chat_id"]
     try:
         settings = GroupAuthSettings.model_validate(raw)
     except ValidationError as exc:
@@ -95,6 +108,7 @@ def _build_auth_config(
     return GroupAuthConfig(
         deny_message=settings.deny_message,
         cache_ttl_s=settings.auth_cache_ttl_s,
+        group_chat_id=settings.group_chat_id,
     )
 
 
@@ -173,7 +187,11 @@ async def _allow_update(
     auth_cfg: GroupAuthConfig,
     checker: _AdminChecker,
 ) -> bool:
-    if not _is_group_chat(update):
+    is_group = _is_group_chat(update)
+    if auth_cfg.group_chat_id is not None and is_group:
+        if update.chat_id != auth_cfg.group_chat_id:
+            return False
+    if not is_group:
         return True
     sender_id = update.sender_id
     if sender_id is None:
@@ -370,6 +388,9 @@ class TelegramGroupAuthBackend(TransportBackend):
         topics = _build_topics_config(transport_config, config_path=config_path)
         files = _build_files_config(transport_config, config_path=config_path)
         auth_cfg = _build_auth_config(transport_config, config_path=config_path)
+        extra_chat_ids: tuple[int, ...] | None = None
+        if auth_cfg.group_chat_id is not None and auth_cfg.group_chat_id != chat_id:
+            extra_chat_ids = (auth_cfg.group_chat_id,)
         cfg = TelegramBridgeConfig(
             bot=bot,
             runtime=runtime,
@@ -379,6 +400,7 @@ class TelegramGroupAuthBackend(TransportBackend):
             voice_transcription=voice_transcription,
             topics=topics,
             files=files,
+            chat_ids=extra_chat_ids,
         )
 
         async def run_loop() -> None:

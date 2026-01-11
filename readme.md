@@ -17,7 +17,8 @@ transport = "telegram_group_auth"
 
 [transports.telegram_group_auth]
 bot_token = "..."
-chat_id = -123456789
+chat_id = 123456789
+group_chat_id = -123456789
 
 auth_cache_ttl_s = 60
 # deny_message = "admins only"
@@ -35,6 +36,10 @@ auto_put = true
 
 - `auth_cache_ttl_s` (float, default `60`): cache duration for admin checks.
 - `deny_message` (string, optional): reply text sent to non-admins in group chats.
+- `group_chat_id` (integer, optional): group chat id allowed for admin-only access.
+
+`chat_id` should be your own Telegram user id to keep direct messages restricted
+to you, matching the built-in Telegram transport behavior.
 
 ## Notes
 
